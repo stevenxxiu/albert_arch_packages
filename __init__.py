@@ -7,9 +7,9 @@ You can search for packages and open their URLs.
 Synopsis: <trigger> <pkg_name>'''
 
 import json
-import os
 import re
 from datetime import datetime
+from pathlib import Path
 from urllib import parse, request
 
 from albert import Item, UrlAction  # pylint: disable=import-error
@@ -20,7 +20,7 @@ __version__ = '0.4.3'
 __triggers__ = 'aur '
 __authors__ = 'manuelschneid3r'
 
-icon_path = os.path.dirname(__file__) + '/arch.svg'
+icon_path = str(Path(__file__).parent / 'icons/arch.svg')
 baseurl = 'https://aur.archlinux.org/rpc/'
 
 
