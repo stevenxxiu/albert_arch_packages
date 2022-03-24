@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
-'''Query and install ArchLinux User Repository (AUR) packages.
+'''Query ArchLinux User Repository (AUR) packages.
 
-You can search for packages and open their URLs. This extension is also intended to be used to \
-quickly install the packages. If you are missing your favorite AUR helper tool send a PR.
+You can search for packages and open their URLs.
 
 Synopsis: <trigger> <pkg_name>'''
 
@@ -11,10 +10,9 @@ import json
 import os
 import re
 from datetime import datetime
-from shutil import which
 from urllib import parse, request
 
-from albert import Item, TermAction, UrlAction  # pylint: disable=import-error
+from albert import Item, UrlAction  # pylint: disable=import-error
 
 
 __title__ = 'Archlinux User Repository'
@@ -24,14 +22,6 @@ __authors__ = 'manuelschneid3r'
 
 icon_path = os.path.dirname(__file__) + '/arch.svg'
 baseurl = 'https://aur.archlinux.org/rpc/'
-install_cmdline = None
-
-if which('yaourt'):
-    install_cmdline = 'yaourt -S aur/%s'
-elif which('pacaur'):
-    install_cmdline = 'pacaur -S aur/%s'
-elif which('yay'):
-    install_cmdline = 'yay -S aur/%s'
 
 
 def entry_to_item(entry, query_pattern):
@@ -52,14 +42,6 @@ def entry_to_item(entry, query_pattern):
     if entry['Maintainer'] is None:
         subtext = f'<font color="red">[Orphan]</font> {subtext}'
     item.subtext = subtext
-
-    if install_cmdline:
-        pkgmgr = install_cmdline.split('' '', 1)
-        pkg_install_cmdline = install_cmdline % name
-        item.actions = [
-            TermAction(f'Install using {pkgmgr[0]}', pkg_install_cmdline),
-            TermAction(f'Install using {pkgmgr[0]} (noconfirm)', f'{pkg_install_cmdline} --noconfirm'),
-        ]
 
     item.addAction(UrlAction('Open AUR website', f'https://aur.archlinux.org/packages/{name}/'))
 
