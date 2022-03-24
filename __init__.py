@@ -6,6 +6,7 @@ You can search for packages and open their URLs.
 
 Synopsis: <trigger> <pkg_name>'''
 
+import concurrent.futures
 import json
 import re
 from datetime import datetime, timezone
@@ -165,4 +166,13 @@ def handleQuery(query):
             ),
         ]
 
-    return ArchOfficialRepository.query(query_str) + ArchUserRepository.query(query_str)
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = [
+            executor.submit(ArchOfficialRepository.query, query_str),
+            executor.submit(ArchUserRepository.query, query_str),
+        ]
+        results = []
+        concurrent.futures.wait(futures)
+        for future in futures:
+            results.extend(future.result())
+        return results
