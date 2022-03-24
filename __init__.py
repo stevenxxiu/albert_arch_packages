@@ -49,6 +49,7 @@ class ArchOfficialRepository:
             subtext = f'<font color="red">[Out of date: {date_text}]</font> {subtext}'
         if not entry['maintainers']:
             subtext = f'<font color="red">[Orphan]</font> {subtext}'
+        subtext = f'<font color="dimgray">[{entry["repo"]}]</font> {subtext}'
         item.subtext = subtext
 
         item.addAction(
@@ -105,12 +106,13 @@ class ArchUserRepository:
             ),
             completion=f'{__triggers__}{name}',
         )
-        subtext = entry['Description'] if entry['Description'] else '[No description]'
+        subtext = f'{entry["Description"] if entry["Description"] else "[No description]"}'
         if entry['OutOfDate']:
             date_text = to_local_time_str(datetime.fromtimestamp(entry['OutOfDate']))
             subtext = f'<font color="red">[Out of date: {date_text}]</font> {subtext}'
         if entry['Maintainer'] is None:
             subtext = f'<font color="red">[Orphan]</font> {subtext}'
+        subtext = f'<font color="dimgray">[AUR]</font> {subtext}'
         item.subtext = subtext
 
         item.addAction(UrlAction('Open AUR website', f'https://aur.archlinux.org/packages/{name}/'))
