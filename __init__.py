@@ -28,6 +28,10 @@ def to_local_time_str(datetime_obj):
     return datetime_obj.replace(tzinfo=timezone.utc).astimezone().strftime('%F %T')
 
 
+def highlight_query(query_pattern, name):
+    return query_pattern.sub(lambda m: f'<u>{m.group(0)}</u>', name)
+
+
 class ArchOfficialRepository:
     API_URL = 'https://www.archlinux.org/packages/search/json'
 
@@ -37,10 +41,7 @@ class ArchOfficialRepository:
         item = Item(
             id=__title__,
             icon=ICON_PATH,
-            text=(
-                f'<b>{query_pattern.sub(lambda m: f"<u>{m.group(0)}</u>", name)}</b> '
-                f'<i>{entry["pkgver"]}-{entry["pkgrel"]}</i>'
-            ),
+            text=f'<b>{highlight_query(query_pattern, name)}</b> <i>{entry["pkgver"]}-{entry["pkgrel"]}</i>',
             completion=f'{__triggers__}{name}',
         )
         subtext = entry['pkgdesc']
@@ -100,10 +101,7 @@ class ArchUserRepository:
         item = Item(
             id=__title__,
             icon=ICON_PATH,
-            text=(
-                f'<b>{query_pattern.sub(lambda m: f"<u>{m.group(0)}</u>", name)}</b> '
-                f'<i>{entry["Version"]}</i> ({entry["NumVotes"]})'
-            ),
+            text=f'<b>{highlight_query(query_pattern, name)}</b> <i>{entry["Version"]}</i> ({entry["NumVotes"]})',
             completion=f'{__triggers__}{name}',
         )
         subtext = f'{entry["Description"] if entry["Description"] else "[No description]"}'
