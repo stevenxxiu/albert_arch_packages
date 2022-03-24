@@ -82,8 +82,7 @@ def handleQuery(query):
         results = []
         query_pattern = re.compile(query.string, re.IGNORECASE)
         results_json = data['results']
-        results_json.sort(key=lambda item: item['Name'])
-        results_json.sort(key=lambda item: len(item['Name']))
+        results_json.sort(key=lambda item: (len(item['Name']), item['Name']))
 
         for entry in results_json:
             results.append(entry_to_item(entry, query_pattern))
