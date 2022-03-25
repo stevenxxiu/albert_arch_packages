@@ -6,5 +6,4 @@ To install, copy or symlink this directory to `~/.local/share/albert/org.albert.
 To setup the project for development, run:
 
     $ cd arch_packages/
-    $ npm install
     $ pre-commit install --hook-type pre-commit --hook-type commit-msg
