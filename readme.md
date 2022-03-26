@@ -7,3 +7,7 @@ To setup the project for development, run:
 
     $ cd arch_packages/
     $ pre-commit install --hook-type pre-commit --hook-type commit-msg
+
+To lint and format files, run:
+
+    $ pre-commit run --all-files
