@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 '''Query *Arch Linux* official and *AUR* packages.
 
 You can search for packages and open their URLs.
