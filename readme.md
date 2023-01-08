@@ -1,8 +1,8 @@
 # Arch Linux Packages Search Extension
-# Install
+## Install
 To install, copy or symlink this directory to `~/.local/share/albert/org.albert.extension.python/modules/arch_linux_packages/`.
 
-# Development Setup
+## Development Setup
 To setup the project for development, run:
 
     $ cd arch_linux_packages/
