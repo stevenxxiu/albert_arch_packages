@@ -155,7 +155,7 @@ class Plugin(QueryHandler):
         return md_description
 
     def defaultTrigger(self) -> str:
-        return TRIGGER
+        return f'{TRIGGER} '
 
     def synopsis(self) -> str:
         return 'pkg_name'
