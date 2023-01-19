@@ -5,7 +5,6 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from re import Pattern
-from typing import List
 from urllib import parse, request
 
 from albert import Action, Item, Query, QueryHandler, openUrl  # pylint: disable=import-error
@@ -62,16 +61,16 @@ class ArchOfficialRepository:
         )
 
     @classmethod
-    def query(cls, query_str: str) -> List[Item]:
-        repos: List[str] = ['Core', 'Extra', 'Community']
-        repos_lower: List[str] = [repo.lower() for repo in repos]
-        params: List[tuple[str, str]] = [('repo', repo) for repo in repos] + [('q', query_str)]
+    def query(cls, query_str: str) -> list[Item]:
+        repos: list[str] = ['Core', 'Extra', 'Community']
+        repos_lower: list[str] = [repo.lower() for repo in repos]
+        params: list[tuple[str, str]] = [('repo', repo) for repo in repos] + [('q', query_str)]
         url = f'{cls.API_URL}?{parse.urlencode(params)}'
         req = request.Request(url)
 
         with request.urlopen(req) as response:
             data = json.loads(response.read().decode())
-            items: List[Item] = []
+            items: list[Item] = []
             results_json = data['results']
             results_json.sort(
                 key=lambda entry_: (repos_lower.index(entry_["repo"]), len(entry_['pkgname']), entry_['pkgname'])
@@ -120,7 +119,7 @@ class ArchUserRepository:
         )
 
     @classmethod
-    def query(cls, query_str: str) -> List[Item]:
+    def query(cls, query_str: str) -> list[Item]:
         params = {'v': '5', 'type': 'search', 'by': 'name', 'arg': query_str}
         url = f'{cls.API_URL}?{parse.urlencode(params)}'
         req = request.Request(url)
