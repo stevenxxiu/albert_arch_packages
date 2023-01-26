@@ -13,7 +13,7 @@ from albert import Action, Item, Query, QueryHandler, openUrl  # pylint: disable
 md_iid = '0.5'
 md_version = '1.0'
 md_name = 'Arch Linux Packages'
-md_description = 'Query *Arch Linux* official and *AUR* packages. Search for packages, open their URLs.'
+md_description = 'Query Arch Linux official and AUR packages'
 md_url = 'https://github.com/stevenxxiu/albert_arch_packages'
 md_maintainers = '@stevenxxiu'
 
