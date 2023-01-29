@@ -17,7 +17,6 @@ md_description = 'Query Arch Linux official and AUR packages'
 md_url = 'https://github.com/stevenxxiu/albert_arch_packages'
 md_maintainers = '@stevenxxiu'
 
-TRIGGER = 'apkg'
 ICON_PATH = str(Path(__file__).parent / 'icons/arch.svg')
 
 
@@ -33,7 +32,7 @@ class ArchOfficialRepository:
     API_URL = 'https://www.archlinux.org/packages/search/json'
 
     @staticmethod
-    def entry_to_item(entry: dict, query_pattern: Pattern) -> Item:
+    def entry_to_item(entry: dict, query_pattern: Pattern, trigger: str) -> Item:
         name: str = entry['pkgname']
 
         subtext = entry['pkgdesc']
@@ -55,13 +54,13 @@ class ArchOfficialRepository:
             id=f'{md_name}/{entry["repo"]}/{entry["arch"]}/{name}',
             text=f'{highlight_query(query_pattern, name)} {entry["pkgver"]}-{entry["pkgrel"]}',
             subtext=subtext,
-            completion=f'{TRIGGER} {name}',
+            completion=f'{trigger}{name}',
             icon=[ICON_PATH],
             actions=actions,
         )
 
     @classmethod
-    def query(cls, query_str: str) -> list[Item]:
+    def query(cls, query_str: str, trigger: str) -> list[Item]:
         repos: list[str] = ['Core', 'Extra', 'Community']
         repos_lower: list[str] = [repo.lower() for repo in repos]
         params: list[tuple[str, str]] = [('repo', repo) for repo in repos] + [('q', query_str)]
@@ -83,7 +82,7 @@ class ArchOfficialRepository:
                 # https://wiki.archlinux.org/title/Official_repositories_web_interface.
                 if query_str not in entry['pkgname']:
                     continue
-                items.append(cls.entry_to_item(entry, query_pattern))
+                items.append(cls.entry_to_item(entry, query_pattern, trigger))
             return items
 
 
@@ -91,7 +90,7 @@ class ArchUserRepository:
     API_URL = 'https://aur.archlinux.org/rpc/'
 
     @staticmethod
-    def entry_to_item(entry: dict, query_pattern: Pattern) -> Item:
+    def entry_to_item(entry: dict, query_pattern: Pattern, trigger: str) -> Item:
         name = entry['Name']
 
         subtext = f'{entry["Description"] if entry["Description"] else "[No description]"}'
@@ -113,13 +112,13 @@ class ArchUserRepository:
             id=f'{md_name}/AUR/{name}',
             text=f'<b>{highlight_query(query_pattern, name)}</b> <i>{entry["Version"]}</i> ({entry["NumVotes"]})',
             subtext=subtext,
-            completion=f'{TRIGGER} {name}',
+            completion=f'{trigger}{name}',
             icon=[ICON_PATH],
             actions=actions,
         )
 
     @classmethod
-    def query(cls, query_str: str) -> list[Item]:
+    def query(cls, query_str: str, trigger: str) -> list[Item]:
         params = {'v': '5', 'type': 'search', 'by': 'name', 'arg': query_str}
         url = f'{cls.API_URL}?{parse.urlencode(params)}'
         req = request.Request(url)
@@ -139,7 +138,7 @@ class ArchUserRepository:
             results_json.sort(key=lambda entry_: (len(entry_['Name']), entry_['Name']))
 
             query_pattern = re.compile(query_str, re.IGNORECASE)
-            items = [cls.entry_to_item(entry, query_pattern) for entry in results_json]
+            items = [cls.entry_to_item(entry, query_pattern, trigger) for entry in results_json]
             return items
 
 
@@ -154,7 +153,7 @@ class Plugin(QueryHandler):
         return md_description
 
     def defaultTrigger(self) -> str:
-        return f'{TRIGGER} '
+        return 'apkg '
 
     def synopsis(self) -> str:
         return 'pkg_name'
@@ -191,8 +190,8 @@ class Plugin(QueryHandler):
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = [
-                executor.submit(ArchOfficialRepository.query, query_str),
-                executor.submit(ArchUserRepository.query, query_str),
+                executor.submit(ArchOfficialRepository.query, query_str, query.trigger),
+                executor.submit(ArchUserRepository.query, query_str, query.trigger),
             ]
             concurrent.futures.wait(futures)
             for future in futures:
