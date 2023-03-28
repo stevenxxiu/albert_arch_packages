@@ -1,4 +1,6 @@
 # Albert Launcher Arch Linux Packages Search Extension
+Query *Arch Linux*'s official packages and *AUR* packages.
+
 ## Install
 To install, copy or symlink this directory to `~/.local/share/albert/org.albert.extension.python/modules/arch_linux_packages/`.
 
