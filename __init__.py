@@ -2,7 +2,7 @@ import concurrent.futures
 import json
 import re
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from re import Pattern
 from urllib import parse, request
@@ -21,7 +21,7 @@ ICON_PATH = str(Path(__file__).parent / 'icons/arch.svg')
 
 
 def to_local_time_str(datetime_obj: datetime) -> str:
-    return datetime_obj.replace(tzinfo=timezone.utc).astimezone().strftime('%F %T')
+    return datetime_obj.replace(tzinfo=UTC).astimezone().strftime('%F %T')
 
 
 def highlight_query(query_pattern: Pattern, name: str) -> str:
