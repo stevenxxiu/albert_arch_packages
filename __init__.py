@@ -61,7 +61,7 @@ class ArchOfficialRepository:
 
     @classmethod
     def query(cls, query_str: str, trigger: str) -> list[Item]:
-        repos: list[str] = ['Core', 'Extra', 'Community']
+        repos: list[str] = ['Core', 'Extra']
         repos_lower: list[str] = [repo.lower() for repo in repos]
         params: list[tuple[str, str]] = [('repo', repo) for repo in repos] + [('q', query_str)]
         url = f'{cls.API_URL}?{parse.urlencode(params)}'
