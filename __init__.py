@@ -7,11 +7,11 @@ from pathlib import Path
 from re import Pattern
 from urllib import parse, request
 
-from albert import Action, Item, Query, QueryHandler, openUrl  # pylint: disable=import-error
+from albert import Action, Item, TriggerQuery, TriggerQueryHandler, openUrl  # pylint: disable=import-error
 
 
-md_iid = '0.5'
-md_version = '1.0'
+md_iid = '1.0'
+md_version = '1.1'
 md_name = 'Arch Linux Packages'
 md_description = 'Query Arch Linux official and AUR packages'
 md_url = 'https://github.com/stevenxxiu/albert_arch_packages'
@@ -142,7 +142,7 @@ class ArchUserRepository:
             return items
 
 
-class Plugin(QueryHandler):
+class Plugin(TriggerQueryHandler):
     def id(self) -> str:
         return __name__
 
@@ -158,7 +158,7 @@ class Plugin(QueryHandler):
     def synopsis(self) -> str:
         return 'pkg_name'
 
-    def handleQuery(self, query: Query) -> None:
+    def handleTriggerQuery(self, query: TriggerQuery) -> None:
         query_str = query.string.strip()
         if not query_str:
             item = Item(
