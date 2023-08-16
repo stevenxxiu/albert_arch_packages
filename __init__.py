@@ -7,17 +7,25 @@ from pathlib import Path
 from re import Pattern
 from urllib import parse, request
 
-from albert import Action, Item, TriggerQuery, TriggerQueryHandler, openUrl  # pylint: disable=import-error
+from albert import (  # pylint: disable=import-error
+    Action,
+    Item,
+    PluginInstance,
+    StandardItem,
+    TriggerQuery,
+    TriggerQueryHandler,
+    openUrl,
+)
 
 
-md_iid = '1.0'
-md_version = '1.1'
+md_iid = '2.0'
+md_version = '1.2'
 md_name = 'Arch Linux Packages'
 md_description = 'Query Arch Linux official and AUR packages'
 md_url = 'https://github.com/stevenxxiu/albert_arch_packages'
 md_maintainers = '@stevenxxiu'
 
-ICON_PATH = str(Path(__file__).parent / 'icons/arch.svg')
+ICON_URL = f'file:{Path(__file__).parent / "icons/arch.svg"}'
 
 
 def to_local_time_str(datetime_obj: datetime) -> str:
@@ -32,7 +40,7 @@ class ArchOfficialRepository:
     API_URL = 'https://www.archlinux.org/packages/search/json'
 
     @staticmethod
-    def entry_to_item(entry: dict, query_pattern: Pattern, trigger: str) -> Item:
+    def entry_to_item(entry: dict, query_pattern: Pattern, _trigger: str) -> Item:
         name: str = entry['pkgname']
 
         subtext = entry['pkgdesc']
@@ -50,12 +58,11 @@ class ArchOfficialRepository:
                 Action(f'{md_name}/{entry["url"]}', 'Open project website', lambda: openUrl(entry['url'])),
             )
 
-        return Item(
+        return StandardItem(
             id=f'{md_name}/{entry["repo"]}/{entry["arch"]}/{name}',
             text=f'{highlight_query(query_pattern, name)} {entry["pkgver"]}-{entry["pkgrel"]}',
             subtext=subtext,
-            completion=f'{trigger}{name}',
-            icon=[ICON_PATH],
+            iconUrls=[ICON_URL],
             actions=actions,
         )
 
@@ -90,7 +97,7 @@ class ArchUserRepository:
     API_URL = 'https://aur.archlinux.org/rpc/'
 
     @staticmethod
-    def entry_to_item(entry: dict, query_pattern: Pattern, trigger: str) -> Item:
+    def entry_to_item(entry: dict, query_pattern: Pattern, _trigger: str) -> Item:
         name = entry['Name']
 
         subtext = f'{entry["Description"] if entry["Description"] else "[No description]"}'
@@ -108,12 +115,11 @@ class ArchUserRepository:
                 Action(f'{md_name}/{entry["URL"]}', 'Open project website', lambda: openUrl(entry['URL'])),
             )
 
-        return Item(
+        return StandardItem(
             id=f'{md_name}/AUR/{name}',
             text=f'<b>{highlight_query(query_pattern, name)}</b> <i>{entry["Version"]}</i> ({entry["NumVotes"]})',
             subtext=subtext,
-            completion=f'{trigger}{name}',
-            icon=[ICON_PATH],
+            iconUrls=[ICON_URL],
             actions=actions,
         )
 
@@ -127,11 +133,11 @@ class ArchUserRepository:
             data = json.loads(response.read().decode())
             if data['type'] == 'error':
                 return [
-                    Item(
+                    StandardItem(
                         id=f'{md_name}/aur_error',
                         text='Error',
                         subtext=data['error'],
-                        icon=[ICON_PATH],
+                        iconUrls=[ICON_URL],
                     )
                 ]
             results_json = data['results']
@@ -142,30 +148,21 @@ class ArchUserRepository:
             return items
 
 
-class Plugin(TriggerQueryHandler):
-    def id(self) -> str:
-        return __name__
-
-    def name(self) -> str:
-        return md_name
-
-    def description(self) -> str:
-        return md_description
-
-    def defaultTrigger(self) -> str:
-        return 'apkg '
-
-    def synopsis(self) -> str:
-        return 'pkg_name'
+class Plugin(PluginInstance, TriggerQueryHandler):
+    def __init__(self):
+        TriggerQueryHandler.__init__(
+            self, id=__name__, name=md_name, description=md_description, synopsis='pkg_name', defaultTrigger='apkg '
+        )
+        PluginInstance.__init__(self, extensions=[self])
 
     def handleTriggerQuery(self, query: TriggerQuery) -> None:
         query_str = query.string.strip()
         if not query_str:
-            item = Item(
+            item = StandardItem(
                 id=f'{md_name}/open_websites',
                 text=md_name,
                 subtext='Enter a query to search Arch Linux and AUR packages',
-                icon=[ICON_PATH],
+                iconUrls=[ICON_URL],
                 actions=[
                     Action(
                         f'{md_name}/open_arch_repos',
