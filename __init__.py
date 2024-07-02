@@ -12,14 +12,13 @@ from albert import (  # pylint: disable=import-error
     Item,
     PluginInstance,
     StandardItem,
-    TriggerQuery,
     TriggerQueryHandler,
     openUrl,
 )
 
 
-md_iid = '2.0'
-md_version = '1.2'
+md_iid = '2.3'
+md_version = '1.3'
 md_name = 'Arch Linux Packages'
 md_description = 'Query Arch Linux official and AUR packages'
 md_url = 'https://github.com/stevenxxiu/albert_arch_packages'
@@ -153,9 +152,9 @@ class Plugin(PluginInstance, TriggerQueryHandler):
         TriggerQueryHandler.__init__(
             self, id=__name__, name=md_name, description=md_description, synopsis='pkg_name', defaultTrigger='apkg '
         )
-        PluginInstance.__init__(self, extensions=[self])
+        PluginInstance.__init__(self)
 
-    def handleTriggerQuery(self, query: TriggerQuery) -> None:
+    def handleTriggerQuery(self, query) -> None:
         query_str = query.string.strip()
         if not query_str:
             item = StandardItem(
