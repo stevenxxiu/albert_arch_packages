@@ -78,7 +78,7 @@ class ArchOfficialRepository:
             items: list[Item] = []
             results_json = data['results']
             results_json.sort(
-                key=lambda entry_: (repos_lower.index(entry_["repo"]), len(entry_['pkgname']), entry_['pkgname'])
+                key=lambda entry_: (repos_lower.index(entry_['repo']), len(entry_['pkgname']), entry_['pkgname'])
             )
 
             query_pattern = re.compile(query_str, re.IGNORECASE)
