@@ -14,7 +14,7 @@ disable = [
     'no-member',
     'too-few-public-methods',
     'too-many-ancestors',
-  ]
+]
 max-line-length = 120
 
 [tool.pyright]
