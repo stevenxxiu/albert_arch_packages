@@ -2,7 +2,7 @@
 Query *Arch Linux*'s official packages and *AUR* packages.
 
 ## Install
-To install, copy or symlink this directory to `~/.local/share/albert/org.albert.extension.python/modules/arch_linux_packages/`.
+To install, copy or symlink this directory to `~/.local/share/albert/python/plugins/arch_linux_packages/`.
 
 ## Development Setup
 To setup the project for development, run:
