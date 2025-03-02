@@ -7,7 +7,7 @@ from pathlib import Path
 from re import Pattern
 from urllib import parse, request
 
-from albert import (  # pylint: disable=import-error
+from albert import (
     Action,
     Item,
     PluginInstance,
@@ -16,13 +16,13 @@ from albert import (  # pylint: disable=import-error
     openUrl,
 )
 
-
-md_iid = '2.3'
-md_version = '1.3'
+md_iid = '3.0'
+md_version = '1.4'
 md_name = 'Arch Linux Packages'
 md_description = 'Query Arch Linux official and AUR packages'
+md_license = 'MIT'
 md_url = 'https://github.com/stevenxxiu/albert_arch_packages'
-md_maintainers = '@stevenxxiu'
+md_authors = ['@stevenxxiu']
 
 ICON_URL = f'file:{Path(__file__).parent / "icons/arch.svg"}'
 
@@ -149,10 +149,14 @@ class ArchUserRepository:
 
 class Plugin(PluginInstance, TriggerQueryHandler):
     def __init__(self):
-        TriggerQueryHandler.__init__(
-            self, id=__name__, name=md_name, description=md_description, synopsis='pkg_name', defaultTrigger='apkg '
-        )
         PluginInstance.__init__(self)
+        TriggerQueryHandler.__init__(self)
+
+    def synopsis(self, _query: str) -> str:
+        return 'pkg_name'
+
+    def defaultTrigger(self):
+        return 'apkg '
 
     def handleTriggerQuery(self, query) -> None:
         query_str = query.string.strip()
