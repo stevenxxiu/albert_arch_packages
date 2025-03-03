@@ -116,7 +116,7 @@ class ArchUserRepository:
 
         return StandardItem(
             id=f'{md_name}/AUR/{name}',
-            text=f'<b>{highlight_query(query_pattern, name)}</b> <i>{entry["Version"]}</i> ({entry["NumVotes"]})',
+            text=f'{highlight_query(query_pattern, name)} {entry["Version"]} ({entry["NumVotes"]})',
             subtext=subtext,
             iconUrls=[ICON_URL],
             actions=actions,
