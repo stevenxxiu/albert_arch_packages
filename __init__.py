@@ -3,18 +3,23 @@ import json
 import re
 import time
 from datetime import UTC, datetime
+from http.client import HTTPResponse
 from pathlib import Path
 from re import Pattern
+from typing import Callable, NotRequired, TypedDict, override
 from urllib import parse, request
 
+from albert import openUrl  # pyright: ignore[reportUnknownVariableType]
 from albert import (
     Action,
     Item,
     PluginInstance,
+    Query,
     StandardItem,
     TriggerQueryHandler,
-    openUrl,
 )
+
+openUrl: Callable[[str], None]
 
 md_iid = '3.0'
 md_version = '1.4'
@@ -31,15 +36,31 @@ def to_local_time_str(datetime_obj: datetime) -> str:
     return datetime_obj.replace(tzinfo=UTC).astimezone().strftime('%F %T')
 
 
-def highlight_query(query_pattern: Pattern, name: str) -> str:
+def highlight_query(query_pattern: Pattern[str], name: str) -> str:
     return query_pattern.sub(lambda m: f'<u>{m.group(0)}</u>', name)
 
 
+class ArchQueryEntry(TypedDict):
+    pkgname: str
+    repo: str
+    arch: str
+    pkgver: str
+    pkgrel: str
+    pkgdesc: str
+    url: str
+    flag_date: str | None
+    maintainers: list[str]
+
+
+class ArchQueryRes(TypedDict):
+    results: list[ArchQueryEntry]
+
+
 class ArchOfficialRepository:
-    API_URL = 'https://www.archlinux.org/packages/search/json'
+    API_URL: str = 'https://www.archlinux.org/packages/search/json'
 
     @staticmethod
-    def entry_to_item(entry: dict, query_pattern: Pattern, _trigger: str) -> Item:
+    def entry_to_item(entry: ArchQueryEntry, query_pattern: Pattern[str], _trigger: str) -> Item:
         name: str = entry['pkgname']
 
         subtext = entry['pkgdesc']
@@ -73,8 +94,9 @@ class ArchOfficialRepository:
         url = f'{cls.API_URL}?{parse.urlencode(params)}'
         req = request.Request(url)
 
-        with request.urlopen(req) as response:
-            data = json.loads(response.read().decode())
+        with request.urlopen(req) as response:  # pyright: ignore[reportAny]
+            assert isinstance(response, HTTPResponse)
+            data: ArchQueryRes = json.loads(response.read().decode())  # pyright: ignore[reportAny]
             items: list[Item] = []
             results_json = data['results']
             results_json.sort(
@@ -85,18 +107,34 @@ class ArchOfficialRepository:
             for entry in results_json:
                 # There's no way to only search for package names. We can only search for both name and description,
                 # or the exact package name. We filter the results manually. See
-                # https://wiki.archlinux.org/title/Official_repositories_web_interface.
+                # <https://wiki.archlinux.org/title/Official_repositories_web_interface>.
                 if query_str not in entry['pkgname']:
                     continue
                 items.append(cls.entry_to_item(entry, query_pattern, trigger))
             return items
 
 
+class AurQueryEntry(TypedDict):
+    Name: str
+    Version: str
+    Description: str
+    URL: str
+    NumVotes: int
+    OutOfDate: int | None
+    Maintainer: str | None
+
+
+class AurQueryRes(TypedDict):
+    type: str
+    results: list[AurQueryEntry]
+    error: NotRequired[str]
+
+
 class ArchUserRepository:
-    API_URL = 'https://aur.archlinux.org/rpc/'
+    API_URL: str = 'https://aur.archlinux.org/rpc/'
 
     @staticmethod
-    def entry_to_item(entry: dict, query_pattern: Pattern, _trigger: str) -> Item:
+    def entry_to_item(entry: AurQueryEntry, query_pattern: Pattern[str], _trigger: str) -> Item:
         name = entry['Name']
 
         subtext = f'{entry["Description"] if entry["Description"] else "[No description]"}'
@@ -128,9 +166,11 @@ class ArchUserRepository:
         url = f'{cls.API_URL}?{parse.urlencode(params)}'
         req = request.Request(url)
 
-        with request.urlopen(req) as response:
-            data = json.loads(response.read().decode())
+        with request.urlopen(req) as response:  # pyright: ignore[reportAny]
+            assert isinstance(response, HTTPResponse)
+            data: AurQueryRes = json.loads(response.read().decode())  # pyright: ignore[reportAny]
             if data['type'] == 'error':
+                assert 'error' in data
                 return [
                     StandardItem(
                         id=f'{md_name}/aur_error',
@@ -152,13 +192,16 @@ class Plugin(PluginInstance, TriggerQueryHandler):
         PluginInstance.__init__(self)
         TriggerQueryHandler.__init__(self)
 
+    @override
     def synopsis(self, _query: str) -> str:
         return 'pkg_name'
 
+    @override
     def defaultTrigger(self):
         return 'apkg '
 
-    def handleTriggerQuery(self, query) -> None:
+    @override
+    def handleTriggerQuery(self, query: Query) -> None:
         query_str = query.string.strip()
         if not query_str:
             item = StandardItem(
@@ -179,7 +222,7 @@ class Plugin(PluginInstance, TriggerQueryHandler):
                     ),
                 ],
             )
-            query.add(item)
+            query.add(item)  # pyright: ignore[reportUnknownMemberType]
             return
 
         # Avoid rate limiting
@@ -193,7 +236,7 @@ class Plugin(PluginInstance, TriggerQueryHandler):
                 executor.submit(ArchOfficialRepository.query, query_str, query.trigger),
                 executor.submit(ArchUserRepository.query, query_str, query.trigger),
             ]
-            concurrent.futures.wait(futures)
+            _ = concurrent.futures.wait(futures)
             for future in futures:
                 for item in future.result():
-                    query.add(item)
+                    query.add(item)  # pyright: ignore[reportUnknownMemberType]

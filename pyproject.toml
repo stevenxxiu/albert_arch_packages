@@ -1,11 +1,17 @@
 [project]
+name = ''
+version = ''
+description = ''
+authors = [
+    {name = 'Steven Xu', email = 'stevenxxiu@gmail.com'},
+]
+dependencies = []
 requires-python = '>=3.12'
+license = {text = 'MIT'}
 
-[tool.ruff]
-line-length = 120
-
-[tool.ruff.format]
-quote-style = 'single'
+[tool.basedpyright]
+reportIncompatibleMethodOverride = false
+reportMissingModuleSource = false
 
 [tool.pylint]
 disable = [
@@ -17,7 +23,8 @@ disable = [
 ]
 max-line-length = 120
 
-[tool.pyright]
-reportIncompatibleMethodOverride = false
-reportMissingModuleSource = false
-stubPath = './stubs/'
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.format]
+quote-style = 'single'
