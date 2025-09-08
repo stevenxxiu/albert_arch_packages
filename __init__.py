@@ -171,14 +171,13 @@ class ArchUserRepository:
             data: AurQueryRes = json.loads(response.read().decode())  # pyright: ignore[reportAny]
             if data['type'] == 'error':
                 assert 'error' in data
-                return [
-                    StandardItem(
-                        id=f'{md_name}/aur_error',
-                        text='Error',
-                        subtext=data['error'],
-                        iconUrls=[ICON_URL],
-                    )
-                ]
+                item = StandardItem(
+                    id=f'{md_name}/aur_error',
+                    text='Error',
+                    subtext=data['error'],
+                    iconUrls=[ICON_URL],
+                )
+                return [item]
             results_json = data['results']
             results_json.sort(key=lambda entry_: (len(entry_['Name']), entry_['Name']))
 
@@ -237,6 +236,4 @@ class Plugin(PluginInstance, TriggerQueryHandler):
                 executor.submit(ArchUserRepository.query, query_str, query.trigger),
             ]
             _ = concurrent.futures.wait(futures)
-            for future in futures:
-                for item in future.result():
-                    query.add(item)  # pyright: ignore[reportUnknownMemberType]
+            query.add([item for future in futures for item in future.result()])  # pyright: ignore[reportUnknownMemberType]
