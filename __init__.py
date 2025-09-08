@@ -20,6 +20,7 @@ from albert import (
 )
 
 openUrl: Callable[[str], None]
+type GenId = Callable[[], str]
 
 md_iid = '3.0'
 md_version = '1.4'
@@ -60,7 +61,7 @@ class ArchOfficialRepository:
     API_URL: str = 'https://www.archlinux.org/packages/search/json'
 
     @staticmethod
-    def entry_to_item(entry: ArchQueryEntry, query_pattern: Pattern[str], _trigger: str) -> Item:
+    def entry_to_item(entry: ArchQueryEntry, query_pattern: Pattern[str], gen_id: GenId) -> Item:
         name: str = entry['pkgname']
 
         subtext = entry['pkgdesc']
@@ -79,7 +80,7 @@ class ArchOfficialRepository:
             )
 
         return StandardItem(
-            id=f'{md_name}/{entry["repo"]}/{entry["arch"]}/{name}',
+            id=gen_id(),
             text=f'{highlight_query(query_pattern, name)} {entry["pkgver"]}-{entry["pkgrel"]}',
             subtext=subtext,
             iconUrls=[ICON_URL],
@@ -87,7 +88,7 @@ class ArchOfficialRepository:
         )
 
     @classmethod
-    def query(cls, query_str: str, trigger: str) -> list[Item]:
+    def query(cls, query_str: str, gen_id: GenId) -> list[Item]:
         repos: list[str] = ['Core', 'Extra']
         repos_lower: list[str] = [repo.lower() for repo in repos]
         params: list[tuple[str, str]] = [('repo', repo) for repo in repos] + [('q', query_str)]
@@ -110,7 +111,7 @@ class ArchOfficialRepository:
                 # <https://wiki.archlinux.org/title/Official_repositories_web_interface>.
                 if query_str not in entry['pkgname']:
                     continue
-                items.append(cls.entry_to_item(entry, query_pattern, trigger))
+                items.append(cls.entry_to_item(entry, query_pattern, gen_id))
             return items
 
 
@@ -134,7 +135,7 @@ class ArchUserRepository:
     API_URL: str = 'https://aur.archlinux.org/rpc/'
 
     @staticmethod
-    def entry_to_item(entry: AurQueryEntry, query_pattern: Pattern[str], _trigger: str) -> Item:
+    def entry_to_item(entry: AurQueryEntry, query_pattern: Pattern[str], gen_id: GenId) -> Item:
         name = entry['Name']
 
         subtext = f'{entry["Description"] if entry["Description"] else "[No description]"}'
@@ -153,7 +154,7 @@ class ArchUserRepository:
             )
 
         return StandardItem(
-            id=f'{md_name}/AUR/{name}',
+            id=gen_id(),
             text=f'{highlight_query(query_pattern, name)} {entry["Version"]} ({entry["NumVotes"]})',
             subtext=subtext,
             iconUrls=[ICON_URL],
@@ -161,7 +162,7 @@ class ArchUserRepository:
         )
 
     @classmethod
-    def query(cls, query_str: str, trigger: str) -> list[Item]:
+    def query(cls, query_str: str, gen_id: GenId) -> list[Item]:
         params = {'v': '5', 'type': 'search', 'by': 'name', 'arg': query_str}
         url = f'{cls.API_URL}?{parse.urlencode(params)}'
         req = request.Request(url)
@@ -172,7 +173,7 @@ class ArchUserRepository:
             if data['type'] == 'error':
                 assert 'error' in data
                 item = StandardItem(
-                    id=f'{md_name}/aur_error',
+                    id=gen_id(),
                     text='Error',
                     subtext=data['error'],
                     iconUrls=[ICON_URL],
@@ -182,7 +183,7 @@ class ArchUserRepository:
             results_json.sort(key=lambda entry_: (len(entry_['Name']), entry_['Name']))
 
             query_pattern = re.compile(query_str, re.IGNORECASE)
-            items = [cls.entry_to_item(entry, query_pattern, trigger) for entry in results_json]
+            items = [cls.entry_to_item(entry, query_pattern, gen_id) for entry in results_json]
             return items
 
 
@@ -204,7 +205,7 @@ class Plugin(PluginInstance, TriggerQueryHandler):
         query_str = query.string.strip()
         if not query_str:
             item = StandardItem(
-                id=f'{md_name}/open_websites',
+                id=self.id(),
                 text=md_name,
                 subtext='Enter a query to search Arch Linux and AUR packages',
                 iconUrls=[ICON_URL],
@@ -232,8 +233,8 @@ class Plugin(PluginInstance, TriggerQueryHandler):
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = [
-                executor.submit(ArchOfficialRepository.query, query_str, query.trigger),
-                executor.submit(ArchUserRepository.query, query_str, query.trigger),
+                executor.submit(ArchOfficialRepository.query, query_str, self.id),
+                executor.submit(ArchUserRepository.query, query_str, self.id),
             ]
             _ = concurrent.futures.wait(futures)
             query.add([item for future in futures for item in future.result()])  # pyright: ignore[reportUnknownMemberType]
