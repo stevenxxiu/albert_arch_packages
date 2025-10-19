@@ -21,7 +21,7 @@ repos:
     rev: v2.7.1
     hooks:
       - id: prettier
-        stages: [commit]
+        stages: [pre-commit]
   - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
     rev: v9.4.0
     hooks:
