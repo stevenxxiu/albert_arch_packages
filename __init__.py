@@ -17,12 +17,13 @@ from albert import (
     Query,
     StandardItem,
     TriggerQueryHandler,
+    makeImageIcon,
 )
 
 openUrl: Callable[[str], None]
 type GenId = Callable[[], str]
 
-md_iid = '3.0'
+md_iid = '4.0'
 md_version = '1.4'
 md_name = 'Arch Linux Packages'
 md_description = 'Query Arch Linux official and AUR packages'
@@ -30,7 +31,7 @@ md_license = 'MIT'
 md_url = 'https://github.com/stevenxxiu/albert_arch_packages'
 md_authors = ['@stevenxxiu']
 
-ICON_URL = f'file:{Path(__file__).parent / "icons/arch.svg"}'
+ICON_PATH = Path(__file__).parent / 'icons/arch.svg'
 
 
 def to_local_time_str(datetime_obj: datetime) -> str:
@@ -83,7 +84,7 @@ class ArchOfficialRepository:
             id=gen_id(),
             text=f'{highlight_query(query_pattern, name)} {entry["pkgver"]}-{entry["pkgrel"]}',
             subtext=subtext,
-            iconUrls=[ICON_URL],
+            icon_factory=lambda: makeImageIcon(ICON_PATH),
             actions=actions,
         )
 
@@ -157,7 +158,7 @@ class ArchUserRepository:
             id=gen_id(),
             text=f'{highlight_query(query_pattern, name)} {entry["Version"]} ({entry["NumVotes"]})',
             subtext=subtext,
-            iconUrls=[ICON_URL],
+            icon_factory=lambda: makeImageIcon(ICON_PATH),
             actions=actions,
         )
 
@@ -176,7 +177,7 @@ class ArchUserRepository:
                     id=gen_id(),
                     text='Error',
                     subtext=data['error'],
-                    iconUrls=[ICON_URL],
+                    icon_factory=lambda: makeImageIcon(ICON_PATH),
                 )
                 return [item]
             results_json = data['results']
@@ -208,7 +209,7 @@ class Plugin(PluginInstance, TriggerQueryHandler):
                 id=self.id(),
                 text=md_name,
                 subtext='Enter a query to search Arch Linux and AUR packages',
-                iconUrls=[ICON_URL],
+                icon_factory=lambda: makeImageIcon(ICON_PATH),
                 actions=[
                     Action(
                         f'{md_name}/open_arch_repos',
