@@ -21,7 +21,6 @@ from albert import (
 )
 
 openUrl: Callable[[str], None]
-type GenId = Callable[[], str]
 
 md_iid = '4.0'
 md_version = '1.4'
@@ -62,7 +61,7 @@ class ArchOfficialRepository:
     API_URL: str = 'https://www.archlinux.org/packages/search/json'
 
     @staticmethod
-    def entry_to_item(entry: ArchQueryEntry, query_pattern: Pattern[str], gen_id: GenId) -> Item:
+    def entry_to_item(entry: ArchQueryEntry, query_pattern: Pattern[str]) -> Item:
         name: str = entry['pkgname']
 
         subtext = entry['pkgdesc']
@@ -74,14 +73,14 @@ class ArchOfficialRepository:
         subtext = f'<font color="dimgray">[{entry["repo"]}]</font> {subtext}'
 
         url = f'https://archlinux.org/packages/{entry["repo"]}/{entry["arch"]}/{name}/'
-        actions = [Action(f'{md_name}/{url}', 'Open Arch repositories website', lambda: openUrl(url))]
+        actions = [Action('open_arch', 'Open Arch repositories website', lambda: openUrl(url))]
         if entry['url']:
             actions.append(
-                Action(f'{md_name}/{entry["url"]}', 'Open project website', lambda: openUrl(entry['url'])),
+                Action('open_project', 'Open project website', lambda: openUrl(entry['url'])),
             )
 
         return StandardItem(
-            id=gen_id(),
+            id=f'arch/{name}',
             text=f'{highlight_query(query_pattern, name)} {entry["pkgver"]}-{entry["pkgrel"]}',
             subtext=subtext,
             icon_factory=lambda: makeImageIcon(ICON_PATH),
@@ -89,7 +88,7 @@ class ArchOfficialRepository:
         )
 
     @classmethod
-    def query(cls, query_str: str, gen_id: GenId) -> list[Item]:
+    def query(cls, query_str: str) -> list[Item]:
         repos: list[str] = ['Core', 'Extra']
         repos_lower: list[str] = [repo.lower() for repo in repos]
         params: list[tuple[str, str]] = [('repo', repo) for repo in repos] + [('q', query_str)]
@@ -112,7 +111,7 @@ class ArchOfficialRepository:
                 # <https://wiki.archlinux.org/title/Official_repositories_web_interface>.
                 if query_str not in entry['pkgname']:
                     continue
-                items.append(cls.entry_to_item(entry, query_pattern, gen_id))
+                items.append(cls.entry_to_item(entry, query_pattern))
             return items
 
 
@@ -136,7 +135,7 @@ class ArchUserRepository:
     API_URL: str = 'https://aur.archlinux.org/rpc/'
 
     @staticmethod
-    def entry_to_item(entry: AurQueryEntry, query_pattern: Pattern[str], gen_id: GenId) -> Item:
+    def entry_to_item(entry: AurQueryEntry, query_pattern: Pattern[str]) -> Item:
         name = entry['Name']
 
         subtext = f'{entry["Description"] if entry["Description"] else "[No description]"}'
@@ -148,14 +147,14 @@ class ArchUserRepository:
         subtext = f'<font color="dimgray">[AUR]</font> {subtext}'
 
         url = f'https://aur.archlinux.org/packages/{name}/'
-        actions = [Action(f'{md_name}/{url}', 'Open AUR website', lambda: openUrl(url))]
+        actions = [Action('open_arch', 'Open AUR website', lambda: openUrl(url))]
         if entry['URL']:
             actions.append(
-                Action(f'{md_name}/{entry["URL"]}', 'Open project website', lambda: openUrl(entry['URL'])),
+                Action('open_project', 'Open project website', lambda: openUrl(entry['URL'])),
             )
 
         return StandardItem(
-            id=gen_id(),
+            id=f'aur/{name}',
             text=f'{highlight_query(query_pattern, name)} {entry["Version"]} ({entry["NumVotes"]})',
             subtext=subtext,
             icon_factory=lambda: makeImageIcon(ICON_PATH),
@@ -163,7 +162,7 @@ class ArchUserRepository:
         )
 
     @classmethod
-    def query(cls, query_str: str, gen_id: GenId) -> list[Item]:
+    def query(cls, query_str: str) -> list[Item]:
         params = {'v': '5', 'type': 'search', 'by': 'name', 'arg': query_str}
         url = f'{cls.API_URL}?{parse.urlencode(params)}'
         req = request.Request(url)
@@ -174,7 +173,7 @@ class ArchUserRepository:
             if data['type'] == 'error':
                 assert 'error' in data
                 item = StandardItem(
-                    id=gen_id(),
+                    id='aur_error',
                     text='Error',
                     subtext=data['error'],
                     icon_factory=lambda: makeImageIcon(ICON_PATH),
@@ -184,7 +183,7 @@ class ArchUserRepository:
             results_json.sort(key=lambda entry_: (len(entry_['Name']), entry_['Name']))
 
             query_pattern = re.compile(query_str, re.IGNORECASE)
-            items = [cls.entry_to_item(entry, query_pattern, gen_id) for entry in results_json]
+            items = [cls.entry_to_item(entry, query_pattern) for entry in results_json]
             return items
 
 
@@ -206,18 +205,18 @@ class Plugin(PluginInstance, TriggerQueryHandler):
         query_str = query.string.strip()
         if not query_str:
             item = StandardItem(
-                id=self.id(),
+                id='empty',
                 text=md_name,
                 subtext='Enter a query to search Arch Linux and AUR packages',
                 icon_factory=lambda: makeImageIcon(ICON_PATH),
                 actions=[
                     Action(
-                        f'{md_name}/open_arch_repos',
+                        'open_arch',
                         'Open Arch repositories website',
                         lambda: openUrl('https://archlinux.org/packages/'),
                     ),
                     Action(
-                        f'{md_name}/open_aur',
+                        'open_aur',
                         'Open AUR website',
                         lambda: openUrl('https://aur.archlinux.org/packages/'),
                     ),
@@ -234,8 +233,8 @@ class Plugin(PluginInstance, TriggerQueryHandler):
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = [
-                executor.submit(ArchOfficialRepository.query, query_str, self.id),
-                executor.submit(ArchUserRepository.query, query_str, self.id),
+                executor.submit(ArchOfficialRepository.query, query_str),
+                executor.submit(ArchUserRepository.query, query_str),
             ]
             _ = concurrent.futures.wait(futures)
             query.add([item for future in futures for item in future.result()])  # pyright: ignore[reportUnknownMemberType]
