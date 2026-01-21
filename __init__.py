@@ -1,3 +1,4 @@
+import concurrent.futures
 import json
 import re
 import time
@@ -237,9 +238,11 @@ class Plugin(PluginInstance, GeneratorQueryHandler):
             if not ctx.isValid:
                 return
 
-        for items in ArchOfficialRepository.query(query_str):
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            aur_future = executor.submit(ArchUserRepository.query, query_str)
+            for items in ArchOfficialRepository.query(query_str):
+                if items:
+                    yield items
+            items = aur_future.result()
             if items:
                 yield items
-        items = ArchUserRepository.query(query_str)
-        if items:
-            yield items
