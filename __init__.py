@@ -1,7 +1,7 @@
-import concurrent.futures
 import json
 import re
 import time
+from collections.abc import Generator, Iterator
 from datetime import UTC, datetime
 from http.client import HTTPResponse
 from pathlib import Path
@@ -12,18 +12,18 @@ from urllib import parse, request
 from albert import openUrl  # pyright: ignore[reportUnknownVariableType]
 from albert import (
     Action,
+    GeneratorQueryHandler,
+    Icon,
     Item,
     PluginInstance,
-    Query,
+    QueryContext,
     StandardItem,
-    TriggerQueryHandler,
-    makeImageIcon,
 )
 
 openUrl: Callable[[str], None]
 
-md_iid = '4.0'
-md_version = '1.4'
+md_iid = '5.0'
+md_version = '1.5'
 md_name = 'Arch Linux Packages'
 md_description = 'Query Arch Linux official and AUR packages'
 md_license = 'MIT'
@@ -55,6 +55,7 @@ class ArchQueryEntry(TypedDict):
 
 class ArchQueryRes(TypedDict):
     results: list[ArchQueryEntry]
+    num_pages: int
 
 
 class ArchOfficialRepository:
@@ -83,36 +84,41 @@ class ArchOfficialRepository:
             id=f'arch/{name}',
             text=f'{highlight_query(query_pattern, name)} {entry["pkgver"]}-{entry["pkgrel"]}',
             subtext=subtext,
-            icon_factory=lambda: makeImageIcon(ICON_PATH),
+            icon_factory=lambda: Icon.image(ICON_PATH),
             actions=actions,
         )
 
     @classmethod
-    def query(cls, query_str: str) -> list[Item]:
+    def query(cls, query_str: str) -> Iterator[list[Item]]:
         repos: list[str] = ['Core', 'Extra']
-        repos_lower: list[str] = [repo.lower() for repo in repos]
         params: list[tuple[str, str]] = [('repo', repo) for repo in repos] + [('q', query_str)]
-        url = f'{cls.API_URL}?{parse.urlencode(params)}'
-        req = request.Request(url)
+        cur_page = 1
+        num_pages = None
 
-        with request.urlopen(req) as response:  # pyright: ignore[reportAny]
-            assert isinstance(response, HTTPResponse)
-            data: ArchQueryRes = json.loads(response.read().decode())  # pyright: ignore[reportAny]
-            items: list[Item] = []
-            results_json = data['results']
-            results_json.sort(
-                key=lambda entry_: (repos_lower.index(entry_['repo']), len(entry_['pkgname']), entry_['pkgname'])
-            )
+        while True:
+            if num_pages is not None and cur_page > num_pages:
+                return
 
-            query_pattern = re.compile(query_str, re.IGNORECASE)
-            for entry in results_json:
-                # There's no way to only search for package names. We can only search for both name and description,
-                # or the exact package name. We filter the results manually. See
-                # <https://wiki.archlinux.org/title/Official_repositories_web_interface>.
-                if query_str not in entry['pkgname']:
-                    continue
-                items.append(cls.entry_to_item(entry, query_pattern))
-            return items
+            url = f'{cls.API_URL}?{parse.urlencode(params + [("page", str(cur_page))])}'
+            req = request.Request(url)
+
+            with request.urlopen(req) as response:  # pyright: ignore[reportAny]
+                assert isinstance(response, HTTPResponse)
+                data: ArchQueryRes = json.loads(response.read().decode())  # pyright: ignore[reportAny]
+                if num_pages is None:
+                    num_pages = data['num_pages']
+
+                items: list[Item] = []
+                query_pattern = re.compile(query_str, re.IGNORECASE)
+                for entry in data['results']:
+                    # There's no way to only search for package names. We can only search for both name and description,
+                    # or the exact package name. We filter the results manually. See
+                    # <https://wiki.archlinux.org/title/Official_repositories_web_interface>.
+                    if query_str not in entry['pkgname']:
+                        continue
+                    items.append(cls.entry_to_item(entry, query_pattern))
+                yield items
+            cur_page += 1
 
 
 class AurQueryEntry(TypedDict):
@@ -157,7 +163,7 @@ class ArchUserRepository:
             id=f'aur/{name}',
             text=f'{highlight_query(query_pattern, name)} {entry["Version"]} ({entry["NumVotes"]})',
             subtext=subtext,
-            icon_factory=lambda: makeImageIcon(ICON_PATH),
+            icon_factory=lambda: Icon.image(ICON_PATH),
             actions=actions,
         )
 
@@ -176,7 +182,7 @@ class ArchUserRepository:
                     id='aur_error',
                     text='Error',
                     subtext=data['error'],
-                    icon_factory=lambda: makeImageIcon(ICON_PATH),
+                    icon_factory=lambda: Icon.image(ICON_PATH),
                 )
                 return [item]
             results_json = data['results']
@@ -187,10 +193,10 @@ class ArchUserRepository:
             return items
 
 
-class Plugin(PluginInstance, TriggerQueryHandler):
+class Plugin(PluginInstance, GeneratorQueryHandler):
     def __init__(self):
         PluginInstance.__init__(self)
-        TriggerQueryHandler.__init__(self)
+        GeneratorQueryHandler.__init__(self)
 
     @override
     def synopsis(self, _query: str) -> str:
@@ -201,14 +207,14 @@ class Plugin(PluginInstance, TriggerQueryHandler):
         return 'apkg '
 
     @override
-    def handleTriggerQuery(self, query: Query) -> None:
-        query_str = query.string.strip()
+    def items(self, ctx: QueryContext) -> Generator[list[Item]]:
+        query_str = ctx.query.strip()
         if not query_str:
             item = StandardItem(
                 id='empty',
                 text=md_name,
                 subtext='Enter a query to search Arch Linux and AUR packages',
-                icon_factory=lambda: makeImageIcon(ICON_PATH),
+                icon_factory=lambda: Icon.image(ICON_PATH),
                 actions=[
                     Action(
                         'open_arch',
@@ -222,19 +228,18 @@ class Plugin(PluginInstance, TriggerQueryHandler):
                     ),
                 ],
             )
-            query.add(item)  # pyright: ignore[reportUnknownMemberType]
+            yield [item]
             return
 
         # Avoid rate limiting
         for _ in range(50):
             time.sleep(0.01)
-            if not query.isValid:
+            if not ctx.isValid:
                 return
 
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            futures = [
-                executor.submit(ArchOfficialRepository.query, query_str),
-                executor.submit(ArchUserRepository.query, query_str),
-            ]
-            _ = concurrent.futures.wait(futures)
-            query.add([item for future in futures for item in future.result()])  # pyright: ignore[reportUnknownMemberType]
+        for items in ArchOfficialRepository.query(query_str):
+            if items:
+                yield items
+        items = ArchUserRepository.query(query_str)
+        if items:
+            yield items
