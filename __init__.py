@@ -198,6 +198,7 @@ class Plugin(PluginInstance, GeneratorQueryHandler):
     def __init__(self):
         PluginInstance.__init__(self)
         GeneratorQueryHandler.__init__(self)
+        self.call_count: int = 0
 
     @override
     def synopsis(self, _query: str) -> str:
@@ -232,11 +233,12 @@ class Plugin(PluginInstance, GeneratorQueryHandler):
             yield [item]
             return
 
-        # Avoid rate limiting
-        for _ in range(50):
-            time.sleep(0.01)
-            if not ctx.isValid:
-                return
+        # Rate limit
+        self.call_count += 1
+        call_count = self.call_count
+        time.sleep(0.2)
+        if self.call_count != call_count:
+            return
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
             aur_future = executor.submit(ArchUserRepository.query, query_str)
